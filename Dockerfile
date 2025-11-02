@@ -23,6 +23,8 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
 
 # Root folder untuk Nginx bawaan ServerSideUp
 ENV WEBROOT=/var/www/html/public
-EXPOSE 80
 
-CMD ["start-container"]
+# Aktifkan OPcache buat performa lebih cepat
+ENV PHP_OPCACHE_ENABLE=1
+
+EXPOSE 80
