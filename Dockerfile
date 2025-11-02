@@ -21,10 +21,24 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
     chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-# Root folder untuk Nginx bawaan ServerSideUp
-ENV WEBROOT=/var/www/html/public
+# Tambahkan konfigurasi pool FPM agar tidak error "user has not been defined"
+RUN echo "\
+[www]\n\
+user = www-data\n\
+group = www-data\n\
+listen = /var/run/php/php-fpm.sock\n\
+listen.owner = www-data\n\
+listen.group = www-data\n\
+listen.mode = 0660\n\
+pm = dynamic\n\
+pm.max_children = 5\n\
+pm.start_servers = 2\n\
+pm.min_spare_servers = 1\n\
+pm.max_spare_servers = 3\n\
+chdir = /\n\
+" > /usr/local/etc/php-fpm.d/www.conf
 
-# Aktifkan OPcache buat performa lebih cepat
+ENV WEBROOT=/var/www/html/public
 ENV PHP_OPCACHE_ENABLE=1
 
 EXPOSE 80
