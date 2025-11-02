@@ -38,6 +38,9 @@ pm.max_spare_servers = 3\n\
 chdir = /\n\
 " > /usr/local/etc/php-fpm.d/www.conf
 
+# Pastikan folder socket PHP tersedia
+RUN mkdir -p /var/run/php && chown -R www-data:www-data /var/run/php
+
 ENV WEBROOT=/var/www/html/public
 ENV PHP_OPCACHE_ENABLE=1
 
