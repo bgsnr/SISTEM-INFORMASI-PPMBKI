@@ -4,6 +4,7 @@ WORKDIR /var/www/html
 
 USER root
 
+# Install dependensi dasar PHP
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
@@ -18,8 +19,10 @@ RUN apt-get update && \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Copy seluruh project Laravel
 COPY . .
 
+# Install dependency Laravel
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress && \
     php artisan storage:link || true && \
     php artisan config:cache || true && \
@@ -28,7 +31,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
     chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-USER www-data
+# Aktifkan Nginx bawaan
+ENV WEBROOT=/var/www/html/public
+ENV PHP_FPM_LISTEN=9000
 
-EXPOSE 8000
-CMD ["php-fpm"]
+EXPOSE 80
+CMD ["supervisord"]
