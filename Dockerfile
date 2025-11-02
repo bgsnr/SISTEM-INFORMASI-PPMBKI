@@ -18,15 +18,20 @@ FROM serversideup/php:8.3-fpm-nginx
 WORKDIR /var/www/html
 
 # Install intl extension
-RUN apt-get update && apt-get install -y \
+# Install intl extension
+RUN mkdir -p /var/lib/apt/lists/partial && \
+    chmod 755 /var/lib/apt/lists/partial && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     git \
     unzip \
     libicu-dev \
     libpng-dev \
     libzip-dev \
-    zip \
-    && docker-php-ext-install intl pdo_pgsql gd zip \
-    && rm -rf /var/lib/apt/lists/*
+    zip && \
+    docker-php-ext-install intl pdo_pgsql gd zip && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Copy composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
