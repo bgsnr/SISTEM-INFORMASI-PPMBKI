@@ -11,6 +11,11 @@ export default defineConfig({
         tailwindcss(),
         react(),
     ],
+    build: {
+        outDir: "public/build",
+        manifest: true,        
+        emptyOutDir: true,
+    },
     resolve: (name) => {
         console.log("Trying to load page:", name);
         const pages = import.meta.glob("./Pages/**/*.jsx", { eager: true });
