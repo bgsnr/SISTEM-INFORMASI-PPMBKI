@@ -1,57 +1,39 @@
-# Stage 1 - Build frontend
-FROM node:20-bullseye AS build
+# Stage 1 - Frontend build
+FROM node:20-bookworm AS build
 
 WORKDIR /app
 
-# salin package.json dan lockfile
 COPY package*.json ./
-
-# install dependency (tanpa optional supaya rollup nggak error)
 RUN npm install --omit=optional
 
-# salin seluruh kode
 COPY . .
-
-# build asset vite
 RUN npm run build
 
-# Stage 2 - Laravel + PHP-FPM
-FROM php:8.3-fpm
+# Stage 2 - Laravel (Backend)
+FROM php:8.3-fpm-bookworm
 
 WORKDIR /app
 
-# install dependensi php yang diperlukan
+# Install PHP dependencies (minimal & cepat)
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libpq-dev \
-    libpng-dev \
-    libzip-dev \
-    zip \
+    git unzip libpng-dev libzip-dev libpq-dev \
     && docker-php-ext-install pdo pdo_pgsql gd zip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# salin composer dari image resmi
+# Copy composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# salin source code Laravel
+# Copy source & build hasil dari vite
 COPY . .
-
-# salin hasil build frontend
 COPY --from=build /app/public/build /app/public/build
 
-# install dependensi Laravel
+# Install Laravel dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-# izin akses
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Set permission folder penting
+RUN chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
 
-# generate key jika belum ada
-RUN php artisan key:generate --force || true
-
-# expose port untuk serve
 EXPOSE 8000
 
-# jalankan Laravel server
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
