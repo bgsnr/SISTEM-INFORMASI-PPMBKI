@@ -1,26 +1,14 @@
-# ------------------------------------------------
-# STAGE 1 — FRONTEND BUILD (Vite/Node)
-# ------------------------------------------------
-FROM node:20-bullseye AS build
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-
-# ------------------------------------------------
-# STAGE 2 — PHP-FPM + NGINX + COMPOSER
-# ------------------------------------------------
+# ----------------------------------------------
+# STAGE 1 — PHP-FPM + COMPOSER (No Node)
+# ----------------------------------------------
 FROM serversideup/php:8.3-fpm-nginx
 
 WORKDIR /var/www/html
 
-# ✅ Pastikan kita punya akses root dulu
+# Gunakan root untuk install dependencies
 USER root
 
-# Install PHP extensions & dependencies
+# Install dependensi dasar PHP
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
@@ -32,28 +20,28 @@ RUN apt-get update && \
     docker-php-ext-install intl pdo_pgsql gd zip && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy composer dari official image
+# Tambahkan composer dari official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy source code dari repository
+# Copy source project Laravel
 COPY . .
 
-# Copy hasil build frontend (Vite)
-COPY --from=build /app/public/build /var/www/html/public/build
-
-# Install Laravel dependencies (tanpa dev)
+# Install dependency Laravel tanpa dev
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-# Laravel optimization & permission setup
-RUN php artisan storage:link || true && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
+# Cache konfigurasi Laravel
+RUN php artisan config:cache || true && \
+    php artisan route:cache || true && \
+    php artisan view:cache || true && \
+    php artisan storage:link || true && \
     chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-# Ganti user kembali ke www-data
+# Kembali ke user web server
 USER www-data
 
+# Expose port PHP-FPM
 EXPOSE 8000
+
+# Jalankan PHP-FPM
 CMD ["php-fpm"]
