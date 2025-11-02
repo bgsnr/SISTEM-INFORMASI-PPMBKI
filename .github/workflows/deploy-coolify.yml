@@ -1,4 +1,4 @@
-name: Deploy to Coolify
+name: 🚀 Deploy to Coolify
 
 on:
   push:
@@ -11,9 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify Deploy
-        run: >
-          curl -X POST
-          -H "Authorization: Bearer 4|caV0qY1gYx1CtzSl4q5XdEYgycG1uZOFmSSdpUwI3d56195e"
-          -H "Content-Type: application/json"
-          -d '{"uuid":"ekks8w8k8o4os8gskcoskog8"}'
-          https://coolify.raishannan.com/api/v1/deploy
+        run: |
+          echo "Starting deployment to Coolify..."
+          curl -X POST \
+            -H "Authorization: Bearer 4|caV0qY1gYx1CtzSl4q5XdEYgycG1uZOFmSSdpUwI3d56195e" \
+            -H "Content-Type: application/json" \
+            -d '{"uuid":"ekks8w8k8o4os8gskcoskog8"}' \
+            https://coolify.raishannan.com/api/v1/deploy
