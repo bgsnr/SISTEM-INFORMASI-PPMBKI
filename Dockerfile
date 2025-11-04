@@ -10,6 +10,8 @@ ENV ROLLUP_USE_NODE_JS=1 \
 
 # Copy package files and install dependencies (use lockfile if present)
 COPY package*.json ./
+# Upgrade npm to v11 to avoid npm v10 optional dependency bug for rollup native binaries
+RUN npm install -g npm@11 --silent
 RUN if [ -f package-lock.json ]; then npm ci --no-fund --no-audit; else npm install --no-fund --no-audit; fi
 
 # Copy project files into assets stage (rely on .dockerignore to exclude node_modules/vendor)
