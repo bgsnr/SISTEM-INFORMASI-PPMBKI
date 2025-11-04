@@ -35,15 +35,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /var/www/html
 
-# Copy composer files and artisan/bootstrap needed by composer post scripts
-COPY composer.json composer.lock artisan bootstrap/ ./
-
-# Install composer and PHP deps
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
- && composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist
-
-# Copy application files
+# Copy application files into the image
 COPY . .
+
+# Install composer and PHP deps AFTER full copy, skip scripts then run them explicitly
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+ && composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist --no-scripts \
+ && composer dump-autoload --optimize
+
+# Run composer post scripts that require artisan/bootstrap (safe now that files are present)
+RUN php artisan package:discover --ansi || true
 
 # Copy built assets from node stage
 COPY --from=assets /app/public/build /var/www/html/public/build
@@ -52,6 +53,5 @@ COPY --from=assets /app/public/build /var/www/html/public/build
 RUN chown -R www-data:www-data storage bootstrap/cache public/build \
     && chmod -R 775 storage bootstrap/cache public/build
 
-# Run php-fpm (Coolify will use this container port)
 EXPOSE 9000
 CMD ["php-fpm"]
