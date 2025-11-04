@@ -1,87 +1,37 @@
-########################################
-# STAGE 1 — FRONTEND (Vite build)
-########################################
-FROM node:20-alpine AS frontend
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json vite.config.* ./
-RUN npm ci
-
-# Copy project files & build Vite
-COPY . .
-RUN npm run build
-
-
-########################################
-# STAGE 2 — BACKEND (Composer install)
-########################################
-FROM php:8.3-fpm-alpine AS backend
-
-# Install system deps + intl agar composer tidak error
-RUN apk add --no-cache icu-dev libzip-dev oniguruma-dev git bash zip curl \
-    && docker-php-ext-install intl zip opcache pdo_mysql bcmath
-
-WORKDIR /app
-
-# Install composer manually (karena image ini base-nya php)
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Copy composer files & install deps
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Copy seluruh app
-COPY . .
-
-
-########################################
-# STAGE 3 — RUNTIME (Nginx + Supervisor)
-########################################
+# Use a base PHP-FPM image for Laravel
 FROM php:8.3-fpm-alpine
 
-# Install Nginx, Supervisor, PHP extensions, intl
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    bash \
-    git \
-    icu-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    libzip-dev \
-    libxml2-dev \
-    oniguruma-dev \
-    zip \
-    curl \
-    && docker-php-ext-configure gd --with-jpeg \
-    && docker-php-ext-install \
-        pdo_mysql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        zip \
-        opcache \
-        intl
-
+# Set the working directory inside the container
 WORKDIR /var/www/html
 
-# Copy hasil build backend dan frontend
-COPY --from=backend /app ./
-COPY --from=frontend /app/public/build ./public/build
+# Install system dependencies and PHP extensions required by Laravel
+RUN apk update && apk add --no-cache \
+    git \
+    curl \
+    libzip-dev \
+    libpng-dev \
+    jpeg-dev \
+    freetype-dev \
+    icu-dev \
+    postgresql-dev \
+    && docker-php-ext-install pdo_mysql pdo_pgsql zip gd intl opcache
 
-# Copy konfigurasi
-COPY ./docker/php.ini /usr/local/etc/php/conf.d/php.ini
-COPY ./nginx/default.conf /etc/nginx/http.d/default.conf
-COPY ./docker/supervisord.conf /etc/supervisord.conf
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# Permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 storage bootstrap/cache
+# Copy the Laravel application code into the container
+COPY . .
 
+# Install Laravel application dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Generate application key and optimize configuration (for production)
+# For development, these steps might be handled differently or omitted
+RUN php artisan key:generate
+RUN php artisan config:cache
+
+# Expose the port where PHP-FPM will be listening
 EXPOSE 8000
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Start PHP-FPM
+CMD ["php-fpm"]
