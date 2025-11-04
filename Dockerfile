@@ -1,5 +1,5 @@
 ########################################
-# STAGE 1 — FRONTEND BUILD (Vite)
+# STAGE 1 — FRONTEND (Vite build)
 ########################################
 FROM node:20-alpine AS frontend
 
@@ -9,32 +9,39 @@ WORKDIR /app
 COPY package*.json vite.config.* ./
 RUN npm ci
 
-# Copy project files and build Vite
+# Copy project files & build Vite
 COPY . .
 RUN npm run build
 
 
 ########################################
-# STAGE 2 — BACKEND BUILD (Composer)
+# STAGE 2 — BACKEND (Composer install)
 ########################################
-FROM composer:2 AS backend
+FROM php:8.3-fpm-alpine AS backend
+
+# Install system deps + intl agar composer tidak error
+RUN apk add --no-cache icu-dev libzip-dev oniguruma-dev git bash zip curl \
+    && docker-php-ext-install intl zip opcache pdo_mysql bcmath
 
 WORKDIR /app
 
-# Copy composer files and install dependencies
+# Install composer manually (karena image ini base-nya php)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Copy composer files & install deps
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Copy all app files
+# Copy seluruh app
 COPY . .
 
 
 ########################################
-# STAGE 3 — PRODUCTION RUNTIME (Nginx + PHP-FPM)
+# STAGE 3 — RUNTIME (Nginx + Supervisor)
 ########################################
 FROM php:8.3-fpm-alpine
 
-# Install system & PHP dependencies
+# Install Nginx, Supervisor, PHP extensions, intl
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -60,26 +67,21 @@ RUN apk add --no-cache \
         opcache \
         intl
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Copy backend (Laravel app)
+# Copy hasil build backend dan frontend
 COPY --from=backend /app ./
-
-# Copy built frontend (Vite)
 COPY --from=frontend /app/public/build ./public/build
 
-# Copy configs
+# Copy konfigurasi
 COPY ./docker/php.ini /usr/local/etc/php/conf.d/php.ini
 COPY ./nginx/default.conf /etc/nginx/http.d/default.conf
 COPY ./docker/supervisord.conf /etc/supervisord.conf
 
-# Set permissions
+# Permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 storage bootstrap/cache
 
-# Expose port 8000 for Nginx
 EXPOSE 8000
 
-# Run Nginx and PHP-FPM together
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
