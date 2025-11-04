@@ -12,7 +12,8 @@ ENV ROLLUP_USE_NODE_JS=1 \
 COPY package*.json ./
 # Upgrade npm to v11 to avoid npm v10 optional dependency bug for rollup native binaries
 RUN npm install -g npm@11 --silent
-RUN if [ -f package-lock.json ]; then npm ci --no-fund --no-audit; else npm install --no-fund --no-audit; fi
+# Try `npm ci` for reproducible install; if it fails (lockfile mismatch) fall back to `npm install`
+RUN npm ci --no-fund --no-audit || npm install --no-fund --no-audit
 
 # Copy project files into assets stage (rely on .dockerignore to exclude node_modules/vendor)
 COPY . .
