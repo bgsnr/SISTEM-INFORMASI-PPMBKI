@@ -1,15 +1,3 @@
-FROM node:20-alpine AS frontend
-
-WORKDIR /app
-COPY package*.json vite.config.* ./
-RUN npm install
-
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-
-COPY . .
-RUN npm run build
-
-
 FROM php:8.3-fpm-alpine
 
 WORKDIR /var/www/html
@@ -26,12 +14,6 @@ RUN apk update && apk add --no-cache \
     libjpeg-turbo-dev \
     freetype-dev \
     postgresql-dev \
-    autoconf \
-    g++ \
-    make \
-    && apk add --no-cache --virtual .build-deps build-base \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install \
         pdo_mysql \
@@ -42,14 +24,11 @@ RUN apk update && apk add --no-cache \
         gd \
         intl \
         zip \
-        opcache \
-    && apk del .build-deps
+        opcache
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 COPY . .
-
-COPY --from=frontend /app/public/build ./public/build
 
 RUN mkdir -p bootstrap/cache \
     storage/framework/sessions \
