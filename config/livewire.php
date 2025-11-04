@@ -1,33 +1,13 @@
 <?php
 
-return [
+use Illuminate\Support\Str;
 
-    /*
-    |--------------------------------------------------------------------------
-    | Livewire App URL
-    |--------------------------------------------------------------------------
-    |
-    | Override default URL generation to always use HTTPS. This fixes
-    | the mixed-content issue when behind reverse proxies like Traefik,
-    | Caddy, or Nginx in Coolify environments.
-    |
-    */
+return [
 
     'app_url' => env('APP_URL', 'https://ppmbki.ponpes.id'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Force HTTPS for all Livewire requests
-    |--------------------------------------------------------------------------
-    */
-
-    'https' => true,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Asset URL (optional, for scripts/styles)
-    |--------------------------------------------------------------------------
-    */
+    'https' => Str::startsWith(env('APP_URL', ''), 'https://'),
 
     'asset_url' => env('ASSET_URL', 'https://ppmbki.ponpes.id'),
+
 ];
