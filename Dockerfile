@@ -6,6 +6,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
+
 FROM php:8.3-fpm-alpine
 
 WORKDIR /var/www/html
@@ -22,6 +23,10 @@ RUN apk update && apk add --no-cache \
     libjpeg-turbo-dev \
     freetype-dev \
     postgresql-dev \
+    autoconf \
+    g++ \
+    make \
+    && apk add --no-cache --virtual .build-deps build-base \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
@@ -34,13 +39,15 @@ RUN apk update && apk add --no-cache \
         gd \
         intl \
         zip \
-        opcache
+        opcache \
+    && apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 COPY . .
 
 COPY --from=frontend /app/public/build ./public/build
+
 RUN mkdir -p bootstrap/cache \
     storage/framework/sessions \
     storage/framework/views \
