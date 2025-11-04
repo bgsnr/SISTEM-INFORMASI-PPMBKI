@@ -1,6 +1,21 @@
+# ============================
+# Laravel + Filament Dockerfile
+# ============================
 FROM serversideup/php:8.3-fpm-nginx
 
+# Ganti ke root user supaya bisa install paket tambahan
+USER root
+
 WORKDIR /var/www/html
+
+# Install PHP extension intl
+RUN apk add --no-cache icu-dev \
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install intl \
+    && apk del icu-dev
+
+# Balik lagi ke www-data user (best practice)
+USER www-data
 
 # Copy semua file project
 COPY . .
