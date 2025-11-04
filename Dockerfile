@@ -4,20 +4,24 @@
 FROM node:20-alpine AS assets
 WORKDIR /app
 
+# Environment agar Rollup pakai JS fallback
 ENV ROLLUP_USE_NODE_JS=1 \
     npm_config_fund=false \
     npm_config_audit=false \
-    npm_config_optional=true
+    npm_config_optional=true \
+    NODE_OPTIONS=--no-experimental-fetch
 
 COPY package*.json ./
-RUN npm install --no-fund --no-audit --include=optional \
- && npm uninstall rollup --no-save \
- && npm install rollup vite --no-save --no-optional
+RUN npm install --no-fund --no-audit --include=optional || npm install
 
 COPY . .
 
-# build menggunakan local vite (bukan npx global)
-RUN node ./node_modules/vite/bin/vite.js build
+# 🔧 Clean possible musl rollup binary
+RUN rm -rf node_modules/@rollup \
+ && npm install rollup vite --no-optional --force \
+ && echo "=== Running vite build (JS fallback)===" \
+ && node -e "console.log('Rollup version:', require('rollup').version)" \
+ && node node_modules/vite/bin/vite.js build --debug || (echo '❌ BUILD FAILED' && cat /app/node_modules/rollup/dist/native.js && exit 1)
 
 
 # =========================
