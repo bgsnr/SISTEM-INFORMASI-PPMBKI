@@ -3,6 +3,9 @@ FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY package*.json vite.config.* ./
 RUN npm install
+
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 COPY . .
 RUN npm run build
 
