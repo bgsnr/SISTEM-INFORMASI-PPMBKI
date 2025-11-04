@@ -8,3 +8,20 @@ storage/framework/views
 .env
 docker-compose*.yml
 Dockerfile*
+
+# Optional/IDE
+.vscode
+.idea
+
+# npm/yarn logs
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+/public/build
+/build
+
+# Composer / test caches
+/.composer
+.phpunit.result.cache
+.cache
