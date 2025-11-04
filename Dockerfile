@@ -35,8 +35,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /var/www/html
 
-# Copy composer files first for caching
-COPY composer.json composer.lock ./
+# Copy composer files and artisan/bootstrap needed by composer post scripts
+COPY composer.json composer.lock artisan bootstrap/ ./
 
 # Install composer and PHP deps
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
