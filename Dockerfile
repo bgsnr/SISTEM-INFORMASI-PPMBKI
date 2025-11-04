@@ -1,56 +1,58 @@
-# =======================
-# Stage 1: Build frontend
-# =======================
-FROM node:20-bullseye-slim AS assets
+# =========================
+# Stage 1: Build Frontend
+# =========================
+FROM node:20-alpine AS assets
 WORKDIR /app
 
 ENV ROLLUP_USE_NODE_JS=1 \
     npm_config_fund=false \
     npm_config_audit=false \
-    npm_config_optional=true \
-    npm_config_omit=dev
+    npm_config_optional=true
 
-# Salin dan install dependensi
 COPY package*.json ./
 RUN npm install --no-fund --no-audit --include=optional
 
-# Copy source & config
-COPY resources ./resources
-COPY vite.config.* postcss.config.* tailwind.config.* ./
-COPY public ./public
-
-# Rebuild rollup manual biar gak error di Debian
-RUN npm rebuild rollup --build-from-source || true
+COPY . .
 
 # Build assets Vite
 RUN npm run build
 
 
-# =======================
-# Stage 2: Laravel runtime
-# =======================
-FROM php:8.3-fpm
-
-RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libicu-dev libpq-dev \
- && docker-php-ext-configure intl \
- && docker-php-ext-install intl zip pdo pdo_mysql pdo_pgsql \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+# =========================
+# Stage 2: Run Laravel (PHP)
+# =========================
+FROM php:8.3-fpm-alpine
 
 WORKDIR /var/www/html
 
+RUN apk add --no-cache \
+    git curl zip unzip icu-dev oniguruma-dev libzip-dev \
+    libpng-dev libjpeg-turbo-dev freetype-dev postgresql-dev bash shadow \
+ && docker-php-ext-configure gd --with-jpeg --with-freetype \
+ && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif bcmath gd intl zip opcache \
+ && adduser -D -u 1000 www-data \
+ && chown -R www-data:www-data /var/www/html
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY . .
+
+# Copy hasil build vite ke Laravel public
 COPY --from=assets /app/public/build /var/www/html/public/build
 
-# Composer install
-COPY composer.json composer.lock ./
-RUN curl -sS https://getcomposer.org/installer | php && \
-    php composer.phar install --no-dev --optimize-autoloader --no-interaction
+# Folder Laravel + permission
+RUN mkdir -p \
+    bootstrap/cache \
+    storage/framework/{sessions,views,cache} \
+    storage/logs \
+ && chmod -R 775 storage bootstrap/cache \
+ && chown -R www-data:www-data storage bootstrap/cache
 
-# Permission Laravel
-RUN chown -R www-data:www-data storage bootstrap/cache && \
-    chmod -R 775 storage bootstrap/cache
+# Install PHP deps
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction
+
+# Laravel optimize
+RUN php artisan key:generate --force || true && php artisan optimize:clear && php artisan config:cache
 
 USER www-data
-EXPOSE 80
-CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
+EXPOSE 8000
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

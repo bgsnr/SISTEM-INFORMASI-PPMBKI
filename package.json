@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "ROLLUP_USE_NODE_JS=1 vite build",
+        "build": "vite build",
         "dev": "vite"
     },
     "devDependencies": {
@@ -41,9 +41,5 @@
         "react-toastify": "^11.0.5",
         "swiper": "^11.2.10",
         "tailwind-merge": "^3.3.1"
-    },
-    "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.50.1",
-        "@rollup/rollup-linux-x64-musl": "4.50.1"
     }
 }
