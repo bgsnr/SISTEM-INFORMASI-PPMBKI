@@ -1,37 +1,34 @@
-# ================================================
-# NIXPACKS CONFIG UNTUK LARAVEL + VITE + POSTGRESQL
-# ================================================
+# =====================================================
+# Laravel + Vite + PostgreSQL + Redis (Stable for Coolify)
+# =====================================================
 
 [phases.setup]
-# Paket yang dibutuhkan untuk Laravel, Node, dan build frontend
 nixPkgs = [
   "php83",
   "php83Extensions.intl",
   "php83Extensions.mbstring",
   "php83Extensions.exif",
-  "php83Extensions.pdo_pgsql",
-  "php83Extensions.pgsql",
   "php83Extensions.fileinfo",
   "php83Extensions.zip",
   "php83Extensions.bcmath",
-  "composer",
+  "php83Extensions.pgsql",
+  "php83Extensions.pdo_pgsql",
+  "php83Packages.composer",
   "nodejs_20",
   "npm"
 ]
 
 [phases.install]
-# Install dependencies untuk backend dan frontend
 cmds = [
+  "php -v",
   "composer install --no-dev --optimize-autoloader --no-interaction",
   "npm install --no-fund --no-audit"
 ]
 
 [phases.build]
-# Build frontend pakai vite
 cmds = [
-  "npm run build || (echo '⚠️  Gagal build Vite, skip jika sudah ada public/build')"
+  "npm run build || echo '⚠️  Vite build skipped (no frontend assets found)'"
 ]
 
 [start]
-# Jalankan Laravel di port 8000 agar Coolify bisa deteksi
 cmd = "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"
