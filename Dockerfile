@@ -1,39 +1,43 @@
-# Use a base PHP-FPM image for Laravel
 FROM php:8.3-fpm-alpine
 
-# Set the working directory inside the container
 WORKDIR /var/www/html
-
-# Install system dependencies and PHP extensions required by Laravel
 RUN apk update && apk add --no-cache \
     git \
     curl \
+    zip \
+    unzip \
+    icu-dev \
+    oniguruma-dev \
     libzip-dev \
     libpng-dev \
-    jpeg-dev \
+    libjpeg-turbo-dev \
     freetype-dev \
-    icu-dev \
     postgresql-dev \
-    && docker-php-ext-install pdo_mysql pdo_pgsql zip gd intl opcache
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
-
-# Copy the Laravel application code into the container
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install \
+        pdo_mysql \
+        pdo_pgsql \
+        mbstring \
+        exif \
+        bcmath \
+        gd \
+        intl \
+        zip \
+        opcache
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY . .
 
-# Install Laravel application dependencies
-RUN mkdir -p bootstrap/cache storage/framework storage/logs \
-    && chmod -R 775 bootstrap/cache storage
-RUN composer install --no-dev --optimize-autoloader
+RUN mkdir -p bootstrap/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/cache \
+    storage/logs \
+    && chmod -R 775 storage bootstrap/cache
 
-# Generate application key and optimize configuration (for production)
-# For development, these steps might be handled differently or omitted
-RUN php artisan key:generate
-RUN php artisan config:cache
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
-# Expose the port where PHP-FPM will be listening
+RUN chown -R www-data:www-data /var/www/html
+
 EXPOSE 8000
 
-# Start PHP-FPM
-CMD ["php-fpm"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
