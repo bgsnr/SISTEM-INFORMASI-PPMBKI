@@ -2,24 +2,18 @@ FROM serversideup/php:8.3-fpm-nginx
 
 WORKDIR /var/www/html
 
-RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    curl \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
-
+# Copy semua file project
 COPY . .
 
+# Install dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# Build assets jika pakai Vite
 RUN if [ -f package.json ]; then \
       npm install && npm run build; \
     fi
 
+# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
