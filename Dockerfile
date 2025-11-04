@@ -6,6 +6,8 @@ RUN apk update && apk add --no-cache \
     curl \
     zip \
     unzip \
+    nodejs \
+    npm \
     icu-dev \
     oniguruma-dev \
     libzip-dev \
