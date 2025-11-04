@@ -1,57 +1,54 @@
-# ---- Stage 1: Build Vite assets ----
-FROM node:20-bullseye-slim AS assets
+# ==============================
+# 1️⃣ Build Frontend (Vite)
+# ==============================
+FROM node:20-alpine AS frontend
 WORKDIR /app
 
-# Env untuk mencegah error rollup native & lightningcss
-ENV ROLLUP_USE_NODE_JS=1 \
-    npm_config_fund=false \
-    npm_config_audit=false \
-    npm_config_optional=true
-
-# Copy package files and install dependencies (use lockfile if present)
-COPY package*.json ./
-# Upgrade npm to v11 to avoid npm v10 optional dependency bug for rollup native binaries
-RUN npm install -g npm@11 --silent
-# Try `npm ci` for reproducible install; if it fails (lockfile mismatch) fall back to `npm install`
-RUN npm ci --no-fund --no-audit || npm install --no-fund --no-audit
-
-# Copy project files into assets stage (rely on .dockerignore to exclude node_modules/vendor)
+COPY package*.json vite.config.* ./
+RUN npm ci
 COPY . .
-
-# Rebuild native deps if needed and run build
-RUN npm rebuild rollup --build-from-source || true
 RUN npm run build
 
 
-# ---- Stage 2: PHP Runtime ----
-FROM php:8.3-fpm AS runtime
+# ==============================
+# 2️⃣ Install Backend (Composer)
+# ==============================
+FROM composer:2 AS backend
+WORKDIR /app
 
-# Install system packages & php extensions
-RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libicu-dev libpq-dev libpng-dev libonig-dev libxml2-dev curl \
- && docker-php-ext-configure intl \
- && docker-php-ext-install intl zip pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+COPY . .
+
+
+# ==============================
+# 3️⃣ Runtime — PHP + Nginx (Production)
+# ==============================
+FROM php:8.3-fpm-alpine
+
+# Install dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    bash \
+    git \
+    libpng-dev libjpeg-turbo-dev libzip-dev libxml2-dev oniguruma-dev zip curl \
+    && docker-php-ext-configure gd --with-jpeg \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip opcache
 
 WORKDIR /var/www/html
 
-# Copy application files into the image
-COPY . .
+# Copy built app
+COPY --from=backend /app ./
+COPY --from=frontend /app/public/build ./public/build
 
-# Install composer and PHP deps AFTER full copy, skip scripts then run them explicitly
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
- && composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist --no-scripts \
- && composer dump-autoload --optimize
+# Config
+COPY ./docker/php.ini /usr/local/etc/php/conf.d/php.ini
+COPY ./nginx/default.conf /etc/nginx/http.d/default.conf
+COPY ./docker/supervisord.conf /etc/supervisord.conf
 
-# Run composer post scripts that require artisan/bootstrap (safe now that files are present)
-RUN php artisan package:discover --ansi || true
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 storage bootstrap/cache
 
-# Copy built assets from node stage
-COPY --from=assets /app/public/build /var/www/html/public/build
-
-# Fix permissions
-RUN chown -R www-data:www-data storage bootstrap/cache public/build \
-    && chmod -R 775 storage bootstrap/cache public/build
-
-EXPOSE 9000
-CMD ["php-fpm"]
+EXPOSE 8000
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
