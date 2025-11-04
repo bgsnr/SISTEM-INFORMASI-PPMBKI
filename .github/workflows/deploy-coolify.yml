@@ -14,7 +14,7 @@ jobs:
         run: |
           echo "Starting deployment to Coolify..."
           curl -X POST \
-            -H "Authorization: Bearer 4|caV0qY1gYx1CtzSl4q5XdEYgycG1uZOFmSSdpUwI3d56195e" \
+            -H "Authorization: Bearer 6|DIi9TaFqeMa0ZFPxGClcFRaI0mCxj3FiaP3TZh92890e308d" \
             -H "Content-Type: application/json" \
-            -d '{"uuid":"ekks8w8k8o4os8gskcoskog8"}' \
+            -d '{"uuid":"n4swwo84ss8skwgwoc4oowog"}' \
             https://coolify.raishannan.com/api/v1/deploy
