@@ -1,0 +1,5 @@
+[phases.install]
+cmds = [
+  "mkdir -p bootstrap/cache storage/framework/{sessions,views,cache}",
+  "chmod -R 775 bootstrap/cache storage"
+]
