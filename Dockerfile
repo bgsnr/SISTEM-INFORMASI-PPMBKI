@@ -23,6 +23,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY . .
 
 # Install Laravel application dependencies
+RUN mkdir -p bootstrap/cache storage/framework storage/logs \
+    && chmod -R 775 bootstrap/cache storage
 RUN composer install --no-dev --optimize-autoloader
 
 # Generate application key and optimize configuration (for production)
