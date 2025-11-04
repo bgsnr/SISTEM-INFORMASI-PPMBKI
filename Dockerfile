@@ -1,6 +1,6 @@
-# =========================
+# ========================
 # Stage 1: Build Frontend
-# =========================
+# ========================
 FROM node:20-alpine AS assets
 WORKDIR /app
 
@@ -10,19 +10,19 @@ ENV ROLLUP_USE_NODE_JS=1 \
     npm_config_optional=true
 
 COPY package*.json ./
-RUN npm install --no-fund --no-audit --include=optional
+RUN npm install --no-fund --no-audit --include=optional \
+ && npm uninstall rollup --no-save \
+ && npm install rollup --no-save --no-optional
 
 COPY . .
 
-# Build assets Vite
-RUN npm run build
+RUN export ROLLUP_USE_NODE_JS=1 && npx vite build
 
 
-# =========================
-# Stage 2: Run Laravel (PHP)
-# =========================
+# ========================
+# Stage 2: Laravel Runtime
+# ========================
 FROM php:8.3-fpm-alpine
-
 WORKDIR /var/www/html
 
 RUN apk add --no-cache \
@@ -35,11 +35,8 @@ RUN apk add --no-cache \
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY . .
-
-# Copy hasil build vite ke Laravel public
 COPY --from=assets /app/public/build /var/www/html/public/build
 
-# Folder Laravel + permission
 RUN mkdir -p \
     bootstrap/cache \
     storage/framework/{sessions,views,cache} \
@@ -47,11 +44,7 @@ RUN mkdir -p \
  && chmod -R 775 storage bootstrap/cache \
  && chown -R www-data:www-data storage bootstrap/cache
 
-# Install PHP deps
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction
-
-# Laravel optimize
-RUN php artisan key:generate --force || true && php artisan optimize:clear && php artisan config:cache
 
 USER www-data
 EXPOSE 8000
