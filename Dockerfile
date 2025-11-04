@@ -1,6 +1,6 @@
-# ========================
+# =========================
 # Stage 1: Build Frontend
-# ========================
+# =========================
 FROM node:20-alpine AS assets
 WORKDIR /app
 
@@ -12,16 +12,17 @@ ENV ROLLUP_USE_NODE_JS=1 \
 COPY package*.json ./
 RUN npm install --no-fund --no-audit --include=optional \
  && npm uninstall rollup --no-save \
- && npm install rollup --no-save --no-optional
+ && npm install rollup vite --no-save --no-optional
 
 COPY . .
 
-RUN export ROLLUP_USE_NODE_JS=1 && npx vite build
+# build menggunakan local vite (bukan npx global)
+RUN node ./node_modules/vite/bin/vite.js build
 
 
-# ========================
+# =========================
 # Stage 2: Laravel Runtime
-# ========================
+# =========================
 FROM php:8.3-fpm-alpine
 WORKDIR /var/www/html
 
