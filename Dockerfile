@@ -21,6 +21,7 @@ RUN npm ci --no-fund --no-audit --include=optional \
 COPY . .
 
 # Build assets -> hasilkan public/build + manifest.json
+RUN npm i -D @rollup/rollup-linux-x64-gnu
 RUN npm run build
 
 
