@@ -35,6 +35,8 @@ RUN mkdir -p bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN npm install && npm run build
+
 
 RUN chown -R www-data:www-data /var/www/html
 
