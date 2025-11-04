@@ -1,6 +1,10 @@
+.git
 node_modules
 vendor
-.git
+storage/logs
+storage/framework/sessions
+storage/framework/cache
+storage/framework/views
 .env
-Dockerfile
-npm-debug.log
+docker-compose*.yml
+Dockerfile*

@@ -1,36 +1,34 @@
 FROM node:20-bullseye-slim AS assets
 WORKDIR /app
-ENV npm_config_fund=false \
-    npm_config_audit=false \
-    npm_config_optional=true \
-    npm_config_production=false \
-    ROLLUP_USE_NODE_JS=1
 COPY package*.json ./
-RUN npm ci --no-fund --no-audit --include=optional \
-  || (rm -rf node_modules package-lock.json && npm install --no-fund --no-audit --include=optional)
-RUN npm i -D @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu
-COPY . .
-RUN npx vite --version || npm i -D vite
+RUN npm ci --no-fund --no-audit || npm install --no-fund --no-audit
+COPY resources ./resources
+COPY vite.config.* postcss.config.* tailwind.config.* ./
 RUN npm run build
 
-FROM serversideup/php:8.3-fpm-nginx
-WORKDIR /var/www/html
-USER root
-ENV DEBIAN_FRONTEND=noninteractive
+
+FROM php:8.3-fpm
+
 RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libicu-dev \
+    git unzip zip libzip-dev libicu-dev libpq-dev \
  && docker-php-ext-configure intl \
- && docker-php-ext-install intl zip \
+ && docker-php-ext-install intl zip pdo pdo_mysql pdo_pgsql \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
-ENV COMPOSER_ALLOW_SUPERUSER=1 \
-    COMPOSER_PROCESS_TIMEOUT=2000 \
-    COMPOSER_MAX_PARALLEL_HTTP=12
-COPY --chown=www-data:www-data composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts
-COPY --chown=www-data:www-data . .
+
+WORKDIR /var/www/html
+
+COPY . .
+
 COPY --from=assets /app/public/build /var/www/html/public/build
-RUN composer dump-autoload -o
-RUN chown -R www-data:www-data storage bootstrap/cache \
- && chmod -R 775 storage bootstrap/cache
-ENV PHP_OPCACHE_ENABLE=1
+
+COPY composer.json composer.lock ./
+RUN curl -sS https://getcomposer.org/installer | php && \
+    php composer.phar install --no-dev --no-interaction --optimize-autoloader
+
+RUN chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
+
+USER www-data
 EXPOSE 80
+
+CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
