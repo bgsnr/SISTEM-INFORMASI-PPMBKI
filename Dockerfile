@@ -1,67 +1,56 @@
-# ================================
-# Stage 1: Build Frontend (Vite)
-# ================================
-FROM node:20-bullseye AS frontend
-
+# =======================
+# Stage 1: Build frontend
+# =======================
+FROM node:20-bullseye-slim AS assets
 WORKDIR /app
 
-COPY package*.json vite.config.js ./
-RUN npm ci
+ENV ROLLUP_USE_NODE_JS=1 \
+    npm_config_fund=false \
+    npm_config_audit=false \
+    npm_config_optional=true \
+    npm_config_omit=dev
 
+# Salin dan install dependensi
+COPY package*.json ./
+RUN npm install --no-fund --no-audit --include=optional
+
+# Copy source & config
 COPY resources ./resources
+COPY vite.config.* postcss.config.* tailwind.config.* ./
 COPY public ./public
+
+# Rebuild rollup manual biar gak error di Debian
+RUN npm rebuild rollup --build-from-source || true
+
+# Build assets Vite
 RUN npm run build
 
 
-# ================================
-# Stage 2: Laravel + PHP
-# ================================
-FROM php:8.3-fpm-alpine
+# =======================
+# Stage 2: Laravel runtime
+# =======================
+FROM php:8.3-fpm
+
+RUN apt-get update && apt-get install -y \
+    git unzip zip libzip-dev libicu-dev libpq-dev \
+ && docker-php-ext-configure intl \
+ && docker-php-ext-install intl zip pdo pdo_mysql pdo_pgsql \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
-RUN apk add --no-cache \
-    git \
-    curl \
-    zip \
-    unzip \
-    nodejs \
-    npm \
-    icu-dev \
-    oniguruma-dev \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    postgresql-dev \
-    && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install \
-        pdo_mysql \
-        pdo_pgsql \
-        mbstring \
-        exif \
-        bcmath \
-        gd \
-        intl \
-        zip \
-        opcache
-
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY . .
-COPY --from=frontend /app/public/build ./public/build
+COPY --from=assets /app/public/build /var/www/html/public/build
 
-RUN mkdir -p bootstrap/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/framework/cache \
-    storage/logs \
-    && chmod -R 775 storage bootstrap/cache
+# Composer install
+COPY composer.json composer.lock ./
+RUN curl -sS https://getcomposer.org/installer | php && \
+    php composer.phar install --no-dev --optimize-autoloader --no-interaction
 
-RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction
+# Permission Laravel
+RUN chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
 
-RUN php artisan config:cache && php artisan route:cache && php artisan view:cache
-
-RUN chown -R www-data:www-data /var/www/html
-
-EXPOSE 8000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+USER www-data
+EXPOSE 80
+CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
