@@ -32,7 +32,7 @@ export default function Navbar() {
         { name: "Home", path: "/" },
         { name: "Event", path: "/event" },
         { name: "Artikel", path: "/artikel" },
-        { name: "Layanan Tamu", path: "/layanan-tamu" },
+        // { name: "Layanan Tamu", path: "/layanan-tamu" },
         { name: "Tentang Kami", path: "/tentang-kami" },
     ];
 
@@ -255,9 +255,9 @@ export default function Navbar() {
                                                 color="#059669"
                                             />
                                         )}
-                                        {item.name === "Layanan Tamu" && (
+                                        {/* {item.name === "Layanan Tamu" && (
                                             <Users size={20} color="#059669" />
-                                        )}
+                                        )} */}
                                         {item.name === "Tentang Kami" && (
                                             <Info size={20} color="#059669" />
                                         )}
